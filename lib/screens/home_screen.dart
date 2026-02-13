@@ -36,7 +36,7 @@ class _HomeScreenState extends State<HomeScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('My Code Manager'),
+        title: const Text('RC Special'),
         centerTitle: true,
       ),
       body: FutureBuilder<List<String>>(

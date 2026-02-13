@@ -19,114 +19,191 @@ class DatabaseHelper {
   }
 
   Future<Database> _initDatabase() async {
+    print('DatabaseHelper: _initDatabase called');
+    
     String path;
     
-    // For web, use a simple path. For mobile, use app documents directory
-    if (kIsWeb) {
-      path = 'codes.db';
-    } else {
-      Directory documentsDirectory = await getApplicationDocumentsDirectory();
-      path = join(documentsDirectory.path, 'codes.db');
+    try {
+      // For web, use a simple path. For mobile, use app documents directory
+      if (kIsWeb) {
+        path = 'codes.db';
+        print('DatabaseHelper: Using web path: $path');
+      } else {
+        Directory documentsDirectory = await getApplicationDocumentsDirectory();
+        path = join(documentsDirectory.path, 'codes.db');
+        print('DatabaseHelper: Using mobile path: $path');
+        print('DatabaseHelper: Documents directory: ${documentsDirectory.path}');
+      }
+      
+      final database = await openDatabase(
+        path,
+        version: 1,
+        onCreate: _onCreate,
+      );
+      
+      print('DatabaseHelper: Database opened successfully at: $path');
+      return database;
+    } catch (e) {
+      print('DatabaseHelper: _initDatabase failed with error: $e');
+      rethrow;
     }
-    
-    return await openDatabase(
-      path,
-      version: 1,
-      onCreate: _onCreate,
-    );
   }
 
   Future<void> _onCreate(Database db, int version) async {
-    // Create codes table
-    await db.execute('''
-      CREATE TABLE codes (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        category TEXT,
-        code_content TEXT
-      )
-    ''');
+    print('DatabaseHelper: _onCreate called, creating tables...');
+    
+    try {
+      // Create codes table
+      await db.execute('''
+        CREATE TABLE codes (
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          category TEXT,
+          code_content TEXT
+        )
+      ''');
+      print('DatabaseHelper: codes table created successfully');
 
-    // Create stats table
-    await db.execute('''
-      CREATE TABLE stats (
-        category TEXT PRIMARY KEY,
-        input_count INTEGER DEFAULT 0,
-        output_count INTEGER DEFAULT 0
-      )
-    ''');
+      // Create stats table
+      await db.execute('''
+        CREATE TABLE stats (
+          category TEXT PRIMARY KEY,
+          input_count INTEGER DEFAULT 0,
+          output_count INTEGER DEFAULT 0
+        )
+      ''');
+      print('DatabaseHelper: stats table created successfully');
 
-    // Initialize stats for default categories
-    List<String> defaultCategories = ["60", "325", "660", "1800", "3850", "8100"];
-    for (String category in defaultCategories) {
-      await db.insert('stats', {
-        'category': category,
-        'input_count': 0,
-        'output_count': 0,
-      });
+      // Initialize stats for default categories
+      List<String> defaultCategories = ["60", "325", "660", "1800", "3850", "8100"];
+      print('DatabaseHelper: Initializing stats for ${defaultCategories.length} default categories');
+      
+      for (String category in defaultCategories) {
+        final insertResult = await db.insert('stats', {
+          'category': category,
+          'input_count': 0,
+          'output_count': 0,
+        });
+        print('DatabaseHelper: Initialized stats for category "$category" with ID: $insertResult');
+      }
+      
+      // Verify stats table was populated
+      final statsCount = await db.rawQuery('SELECT COUNT(*) as count FROM stats');
+      final count = statsCount.first['count'] as int;
+      print('DatabaseHelper: Stats table verification - found $count rows');
+      
+    } catch (e) {
+      print('DatabaseHelper: _onCreate failed with error: $e');
+      rethrow;
     }
   }
 
   // Insert code and increment input count
   Future<void> insertCode(String category, String codeContent) async {
+    print('DatabaseHelper: insertCode called with category: $category, code: $codeContent');
     final db = await database;
     
-    await db.transaction((txn) async {
-      // Insert the code
-      await txn.insert('codes', {
-        'category': category,
-        'code_content': codeContent,
+    try {
+      await db.transaction((txn) async {
+        // Insert the code
+        final insertResult = await txn.insert('codes', {
+          'category': category,
+          'code_content': codeContent,
+        });
+        print('DatabaseHelper: Code inserted with ID: $insertResult');
+        
+        // Increment input count
+        final updateResult = await txn.rawUpdate(
+          'UPDATE stats SET input_count = input_count + 1 WHERE category = ?',
+          [category]
+        );
+        print('DatabaseHelper: Input count updated, rows affected: $updateResult');
+        
+        if (updateResult == 0) {
+          print('DatabaseHelper: Warning - No stats row found for category: $category');
+        }
       });
-      
-      // Increment input count
-      await txn.rawUpdate(
-        'UPDATE stats SET input_count = input_count + 1 WHERE category = ?',
-        [category]
-      );
-    });
+      print('DatabaseHelper: insertCode completed successfully');
+    } catch (e) {
+      print('DatabaseHelper: insertCode failed with error: $e');
+      rethrow;
+    }
   }
 
   // Get one random code from category
   Future<Map<String, dynamic>?> getCode(String category) async {
+    print('DatabaseHelper: getCode called with category: $category');
     final db = await database;
     
-    List<Map<String, dynamic>> result = await db.query(
-      'codes',
-      where: 'category = ?',
-      orderBy: 'RANDOM()',
-      limit: 1,
-    );
-    
-    if (result.isNotEmpty) {
-      return result.first;
+    try {
+      // First check if any codes exist for this category
+      final countResult = await db.rawQuery(
+        'SELECT COUNT(*) as count FROM codes WHERE category = ?',
+        [category]
+      );
+      final count = countResult.first['count'] as int;
+      print('DatabaseHelper: Found $count codes for category: $category');
+      
+      List<Map<String, dynamic>> result = await db.query(
+        'codes',
+        where: 'category = ?',
+        orderBy: 'RANDOM()',
+        limit: 1,
+      );
+      
+      if (result.isNotEmpty) {
+        print('DatabaseHelper: Found code with ID: ${result.first['id']}');
+        return result.first;
+      } else {
+        print('DatabaseHelper: No codes found for category: $category');
+        return null;
+      }
+    } catch (e) {
+      print('DatabaseHelper: getCode failed with error: $e');
+      rethrow;
     }
-    return null;
   }
 
   // Delete code and increment output count
   Future<void> deleteCode(int id) async {
+    print('DatabaseHelper: deleteCode called with ID: $id');
     final db = await database;
     
-    await db.transaction((txn) async {
-      // Get the category of the code being deleted
-      List<Map<String, dynamic>> codeResult = await txn.query(
-        'codes',
-        where: 'id = ?',
-        limit: 1,
-      );
-      
-      if (codeResult.isNotEmpty) {
-        String category = codeResult.first['category'] as String;
-        
-        // Delete the code
-        await txn.delete('codes', where: 'id = ?', whereArgs: [id]);
-        
-        // Increment output count
-        await txn.rawUpdate(
-          'UPDATE stats SET output_count = output_count + 1 WHERE category = ?',
-          [category]
+    try {
+      await db.transaction((txn) async {
+        // Get the category of the code being deleted
+        List<Map<String, dynamic>> codeResult = await txn.query(
+          'codes',
+          where: 'id = ?',
+          limit: 1,
         );
-      }
-    });
+        
+        if (codeResult.isNotEmpty) {
+          String category = codeResult.first['category'] as String;
+          print('DatabaseHelper: Found code with category: $category');
+          
+          // Delete the code
+          final deleteResult = await txn.delete('codes', where: 'id = ?', whereArgs: [id]);
+          print('DatabaseHelper: Code deleted, rows affected: $deleteResult');
+          
+          // Increment output count
+          final updateResult = await txn.rawUpdate(
+            'UPDATE stats SET output_count = output_count + 1 WHERE category = ?',
+            [category]
+          );
+          print('DatabaseHelper: Output count updated, rows affected: $updateResult');
+          
+          if (updateResult == 0) {
+            print('DatabaseHelper: Warning - No stats row found for category: $category');
+          }
+        } else {
+          print('DatabaseHelper: Warning - No code found with ID: $id');
+        }
+      });
+      print('DatabaseHelper: deleteCode completed successfully');
+    } catch (e) {
+      print('DatabaseHelper: deleteCode failed with error: $e');
+      rethrow;
+    }
   }
 
   // Get stats for a category
