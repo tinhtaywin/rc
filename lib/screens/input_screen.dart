@@ -23,6 +23,9 @@ class _InputScreenState extends State<InputScreen> {
 
   Future<void> _saveCodes() async {
     String text = _textController.text.trim();
+    print('InputScreen: _saveCodes called with text: "$text"');
+    print('InputScreen: Category: ${widget.category}');
+    
     if (text.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Please enter some codes')),
@@ -37,18 +40,31 @@ class _InputScreenState extends State<InputScreen> {
     try {
       // Split text by newline
       List<String> lines = text.split('\n');
+      print('InputScreen: Split text into ${lines.length} lines');
       
       // Filter out empty lines and process each line
       List<String> validCodes = [];
-      for (String line in lines) {
+      for (int i = 0; i < lines.length; i++) {
+        String line = lines[i];
         String trimmedLine = line.trim();
+        print('InputScreen: Processing line $i: "$trimmedLine"');
+        
         if (trimmedLine.isNotEmpty) {
           String cleanedCode = CodeParser.cleanCodeText(trimmedLine);
+          print('InputScreen: Cleaned code: "$cleanedCode"');
+          
           if (cleanedCode.isNotEmpty) {
             validCodes.add(cleanedCode);
+            print('InputScreen: Added valid code: "$cleanedCode"');
+          } else {
+            print('InputScreen: Code is empty after cleaning');
           }
+        } else {
+          print('InputScreen: Line is empty, skipping');
         }
       }
+
+      print('InputScreen: Found ${validCodes.length} valid codes: $validCodes');
 
       if (validCodes.isEmpty) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -62,8 +78,13 @@ class _InputScreenState extends State<InputScreen> {
 
       // Insert codes into database
       DatabaseHelper dbHelper = DatabaseHelper();
-      for (String code in validCodes) {
+      print('InputScreen: Starting database insertion...');
+      
+      for (int i = 0; i < validCodes.length; i++) {
+        String code = validCodes[i];
+        print('InputScreen: Inserting code $i: "$code" into category: ${widget.category}');
         await dbHelper.insertCode(widget.category, code);
+        print('InputScreen: Successfully inserted code $i');
       }
 
       // Clear the text field
@@ -75,7 +96,10 @@ class _InputScreenState extends State<InputScreen> {
           content: Text('Saved ${validCodes.length} codes to ${widget.category}'),
         ),
       );
+      
+      print('InputScreen: _saveCodes completed successfully');
     } catch (e) {
+      print('InputScreen: Error in _saveCodes: $e');
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text('Error saving codes: $e')),
       );

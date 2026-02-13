@@ -142,6 +142,34 @@ class _ManageScreenState extends State<ManageScreen> {
                     ),
                   ],
                 ),
+                const SizedBox(height: 16),
+                ElevatedButton.icon(
+                  onPressed: () async {
+                    print('=== DEBUG: Testing data flow for category: ${widget.category} ===');
+                    
+                    // Test 1: Check if codes exist
+                    final dbHelper = DatabaseHelper();
+                    final codes = await dbHelper.getCodesByCategory(widget.category);
+                    print('=== DEBUG: Found ${codes.length} codes in database ===');
+                    
+                    // Test 2: Try to get a random code
+                    final randomCode = await dbHelper.getCode(widget.category);
+                    if (randomCode != null) {
+                      print('=== DEBUG: Random code retrieved successfully: ${randomCode['code_content']} ===');
+                    } else {
+                      print('=== DEBUG: No random code found ===');
+                    }
+                    
+                    // Show result
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(
+                        content: Text('Debug: ${codes.length} codes found in database'),
+                      ),
+                    );
+                  },
+                  icon: const Icon(Icons.bug_report),
+                  label: const Text('Debug Data'),
+                ),
                 const SizedBox(height: 40),
                 Padding(
                   padding: const EdgeInsets.all(16.0),

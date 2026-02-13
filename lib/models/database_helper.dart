@@ -261,8 +261,22 @@ class DatabaseHelper {
 
   // Get all codes for a category (for testing/debugging)
   Future<List<Map<String, dynamic>>> getCodesByCategory(String category) async {
+    print('DatabaseHelper: getCodesByCategory called with category: $category');
     final db = await database;
-    return await db.query('codes', where: 'category = ?', whereArgs: [category]);
+    
+    try {
+      List<Map<String, dynamic>> result = await db.query('codes', where: 'category = ?', whereArgs: [category]);
+      print('DatabaseHelper: Found ${result.length} codes for category: $category');
+      
+      for (int i = 0; i < result.length; i++) {
+        print('DatabaseHelper: Code $i - ID: ${result[i]['id']}, Content: ${result[i]['code_content']}');
+      }
+      
+      return result;
+    } catch (e) {
+      print('DatabaseHelper: getCodesByCategory failed with error: $e');
+      rethrow;
+    }
   }
 
   // Close database

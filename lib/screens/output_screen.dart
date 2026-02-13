@@ -18,26 +18,32 @@ class _OutputScreenState extends State<OutputScreen> {
   @override
   void initState() {
     super.initState();
+    print('OutputScreen: initState called with category: ${widget.category}');
     _loadCode();
   }
 
   Future<void> _loadCode() async {
+    print('OutputScreen: _loadCode called with category: ${widget.category}');
     _codeFuture = DatabaseHelper().getCode(widget.category);
+    print('OutputScreen: _codeFuture assigned, waiting for result...');
   }
 
   Future<void> _refreshCode() async {
+    print('OutputScreen: _refreshCode called');
     setState(() {
       _loadCode();
     });
   }
 
   Future<void> _markAsUsed(int codeId) async {
+    print('OutputScreen: _markAsUsed called with codeId: $codeId');
     setState(() {
       _isLoading = true;
     });
 
     try {
       await DatabaseHelper().deleteCode(codeId);
+      print('OutputScreen: Code deleted successfully');
       
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Code marked as used')),
@@ -48,6 +54,7 @@ class _OutputScreenState extends State<OutputScreen> {
         Navigator.pop(context);
       });
     } catch (e) {
+      print('OutputScreen: Error in _markAsUsed: $e');
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text('Error marking code as used: $e')),
       );
@@ -59,6 +66,7 @@ class _OutputScreenState extends State<OutputScreen> {
   }
 
   Future<void> _copyCodeToClipboard(String code) async {
+    print('OutputScreen: _copyCodeToClipboard called with code: "$code"');
     await Clipboard.setData(ClipboardData(text: code));
     ScaffoldMessenger.of(context).showSnackBar(
       const SnackBar(content: Text('Code copied to clipboard')),
