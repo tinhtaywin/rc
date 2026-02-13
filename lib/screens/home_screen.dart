@@ -124,10 +124,12 @@ class _HomeScreenState extends State<HomeScreen> {
       elevation: 4,
       child: InkWell(
         onTap: () {
+          String trimmedCategory = category.trim();
+          print('HomeScreen: Navigating to ManageScreen with category: "$category", trimmed to: "$trimmedCategory"');
           Navigator.push(
             context,
             MaterialPageRoute(
-              builder: (context) => ManageScreen(category: category),
+              builder: (context) => ManageScreen(category: trimmedCategory),
             ),
           ).then((_) => _refreshData());
         },

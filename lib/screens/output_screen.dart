@@ -23,8 +23,9 @@ class _OutputScreenState extends State<OutputScreen> {
   }
 
   Future<void> _loadCode() async {
-    print('OutputScreen: _loadCode called with category: ${widget.category}');
-    _codeFuture = DatabaseHelper().getCode(widget.category);
+    String trimmedCategory = widget.category.trim();
+    print('OutputScreen: _loadCode called with category: "${widget.category}", trimmed to: "$trimmedCategory"');
+    _codeFuture = DatabaseHelper().getCode(trimmedCategory);
     print('OutputScreen: _codeFuture assigned, waiting for result...');
   }
 

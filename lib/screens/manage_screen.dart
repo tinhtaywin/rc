@@ -130,10 +130,12 @@ class _ManageScreenState extends State<ManageScreen> {
                     ),
                     ElevatedButton.icon(
                       onPressed: () {
+                        String trimmedCategory = widget.category.trim();
+                        print('ManageScreen: Navigating to OutputScreen with category: "${widget.category}", trimmed to: "$trimmedCategory"');
                         Navigator.push(
                           context,
                           MaterialPageRoute(
-                            builder: (context) => OutputScreen(category: widget.category),
+                            builder: (context) => OutputScreen(category: trimmedCategory),
                           ),
                         ).then((_) => _refreshStats());
                       },

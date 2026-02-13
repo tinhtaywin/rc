@@ -99,14 +99,15 @@ class DatabaseHelper {
 
   // Insert code and increment input count
   Future<void> insertCode(String category, String codeContent) async {
-    print('DatabaseHelper: insertCode called with category: $category, code: $codeContent');
+    String trimmedCategory = category.trim();
+    print('DatabaseHelper: insertCode called with category: "$category", trimmed to: "$trimmedCategory", code: "$codeContent"');
     final db = await database;
     
     try {
       await db.transaction((txn) async {
         // Insert the code
         final insertResult = await txn.insert('codes', {
-          'category': category,
+          'category': trimmedCategory,
           'code_content': codeContent,
         });
         print('DatabaseHelper: Code inserted with ID: $insertResult');
@@ -114,12 +115,12 @@ class DatabaseHelper {
         // Increment input count
         final updateResult = await txn.rawUpdate(
           'UPDATE stats SET input_count = input_count + 1 WHERE category = ?',
-          [category]
+          [trimmedCategory]
         );
         print('DatabaseHelper: Input count updated, rows affected: $updateResult');
         
         if (updateResult == 0) {
-          print('DatabaseHelper: Warning - No stats row found for category: $category');
+          print('DatabaseHelper: Warning - No stats row found for category: "$trimmedCategory"');
         }
       });
       print('DatabaseHelper: insertCode completed successfully');
@@ -131,17 +132,19 @@ class DatabaseHelper {
 
   // Get one random code from category
   Future<Map<String, dynamic>?> getCode(String category) async {
-    print('DatabaseHelper: getCode called with category: $category');
+    String trimmedCategory = category.trim();
+    print('DatabaseHelper: getCode called with category: "$category", trimmed to: "$trimmedCategory"');
+    print('DatabaseHelper: Searching for: "$trimmedCategory"');
     final db = await database;
     
     try {
       // First check if any codes exist for this category
       final countResult = await db.rawQuery(
         'SELECT COUNT(*) as count FROM codes WHERE category = ?',
-        [category]
+        [trimmedCategory]
       );
       final count = countResult.first['count'] as int;
-      print('DatabaseHelper: Found $count codes for category: $category');
+      print('DatabaseHelper: Found $count codes for category: "$trimmedCategory"');
       
       List<Map<String, dynamic>> result = await db.query(
         'codes',
@@ -154,7 +157,7 @@ class DatabaseHelper {
         print('DatabaseHelper: Found code with ID: ${result.first['id']}');
         return result.first;
       } else {
-        print('DatabaseHelper: No codes found for category: $category');
+        print('DatabaseHelper: No codes found for category: "$trimmedCategory"');
         return null;
       }
     } catch (e) {
@@ -208,65 +211,82 @@ class DatabaseHelper {
 
   // Get stats for a category
   Future<Map<String, dynamic>?> getStats(String category) async {
+    String trimmedCategory = category.trim();
+    print('DatabaseHelper: getStats called with category: "$category", trimmed to: "$trimmedCategory"');
     final db = await database;
     
     List<Map<String, dynamic>> result = await db.query(
       'stats',
       where: 'category = ?',
       limit: 1,
+      whereArgs: [trimmedCategory],
     );
     
     if (result.isNotEmpty) {
+      print('DatabaseHelper: Found stats for category: "$trimmedCategory"');
       return result.first;
+    } else {
+      print('DatabaseHelper: No stats found for category: "$trimmedCategory"');
+      return null;
     }
-    return null;
   }
 
   // Get all stats
   Future<List<Map<String, dynamic>>> getAllStats() async {
     final db = await database;
-    return await db.query('stats');
+    List<Map<String, dynamic>> result = await db.query('stats');
+    print('DatabaseHelper: getAllStats returned ${result.length} stats records');
+    return result;
   }
 
   // Reset input counts
   Future<void> resetInputCounts() async {
     final db = await database;
-    await db.rawUpdate('UPDATE stats SET input_count = 0');
+    int result = await db.rawUpdate('UPDATE stats SET input_count = 0');
+    print('DatabaseHelper: resetInputCounts updated $result rows');
   }
 
   // Reset output counts
   Future<void> resetOutputCounts() async {
     final db = await database;
-    await db.rawUpdate('UPDATE stats SET output_count = 0');
+    int result = await db.rawUpdate('UPDATE stats SET output_count = 0');
+    print('DatabaseHelper: resetOutputCounts updated $result rows');
   }
 
   // Update category name in all references
   Future<void> updateCategoryName(String oldName, String newName) async {
+    String trimmedOldName = oldName.trim();
+    String trimmedNewName = newName.trim();
+    print('DatabaseHelper: updateCategoryName called - old: "$oldName" -> "$trimmedOldName", new: "$newName" -> "$trimmedNewName"');
+    
     final db = await database;
     
     await db.transaction((txn) async {
       // Update stats table
-      await txn.rawUpdate(
+      int statsResult = await txn.rawUpdate(
         'UPDATE stats SET category = ? WHERE category = ?',
-        [newName, oldName]
+        [trimmedNewName, trimmedOldName]
       );
+      print('DatabaseHelper: Updated $statsResult stats records');
       
       // Update codes table
-      await txn.rawUpdate(
+      int codesResult = await txn.rawUpdate(
         'UPDATE codes SET category = ? WHERE category = ?',
-        [newName, oldName]
+        [trimmedNewName, trimmedOldName]
       );
+      print('DatabaseHelper: Updated $codesResult code records');
     });
   }
 
   // Get all codes for a category (for testing/debugging)
   Future<List<Map<String, dynamic>>> getCodesByCategory(String category) async {
-    print('DatabaseHelper: getCodesByCategory called with category: $category');
+    String trimmedCategory = category.trim();
+    print('DatabaseHelper: getCodesByCategory called with category: "$category", trimmed to: "$trimmedCategory"');
     final db = await database;
     
     try {
-      List<Map<String, dynamic>> result = await db.query('codes', where: 'category = ?', whereArgs: [category]);
-      print('DatabaseHelper: Found ${result.length} codes for category: $category');
+      List<Map<String, dynamic>> result = await db.query('codes', where: 'category = ?', whereArgs: [trimmedCategory]);
+      print('DatabaseHelper: Found ${result.length} codes for category: "$trimmedCategory"');
       
       for (int i = 0; i < result.length; i++) {
         print('DatabaseHelper: Code $i - ID: ${result[i]['id']}, Content: ${result[i]['code_content']}');
